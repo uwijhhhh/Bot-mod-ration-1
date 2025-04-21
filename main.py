@@ -14,43 +14,32 @@ if not TOKEN:
 async def on_ready():
     print(f"Connecté en tant que {bot.user.name}")
 
-# ========= CONFIGURATION AUTOMATIQUE =========
-
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def config(ctx):
     guild = ctx.guild
     await ctx.send("Configuration du système de tickets en cours...")
 
-    # 1. Rôle modérateur
     mod_role = discord.utils.get(guild.roles, name="Modérateur")
     if not mod_role:
         mod_role = await guild.create_role(name="Modérateur", color=discord.Color.orange())
-        await ctx.send("Rôle `Modérateur` créé.")
 
-    # 2. Catégories
     ticket_cat = discord.utils.get(guild.categories, name="Tickets")
     mod_cat = discord.utils.get(guild.categories, name="Tickets-Modération")
 
     if not ticket_cat:
         ticket_cat = await guild.create_category("Tickets")
-        await ctx.send("Catégorie `Tickets` créée.")
     if not mod_cat:
         mod_cat = await guild.create_category("Tickets-Modération")
-        await ctx.send("Catégorie `Tickets-Modération` créée.")
 
-    # 3. Canaux support + logs
     support_channel = discord.utils.get(guild.text_channels, name="support")
     if not support_channel:
         support_channel = await guild.create_text_channel("support", category=ticket_cat)
-        await ctx.send("Canal `support` créé.")
 
     log_channel = discord.utils.get(guild.text_channels, name="ticket-logs")
     if not log_channel:
         log_channel = await guild.create_text_channel("ticket-logs", category=mod_cat)
-        await ctx.send("Canal `ticket-logs` créé.")
 
-    # 4. Panel ticket
     embed = discord.Embed(
         title="Besoin d'aide ?",
         description="Clique ci-dessous pour ouvrir un ticket !",
@@ -64,9 +53,6 @@ async def config(ctx):
     await support_channel.send(embed=embed, view=view)
     await ctx.send("Panel envoyé dans `#support`. Configuration terminée !")
 
-
-# ========= INTERACTION TICKET =========
-
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.data.get("custom_id") != "open_ticket":
@@ -76,29 +62,24 @@ async def on_interaction(interaction: discord.Interaction):
     user = interaction.user
     await interaction.response.defer(ephemeral=True)
 
-    # Permissions du salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(read_messages=False),
         user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
         guild.me: discord.PermissionOverwrite(read_messages=True),
     }
 
-    # Créer le salon de ticket
     ticket_cat = discord.utils.get(guild.categories, name="Tickets")
     channel = await ticket_cat.create_text_channel(f"ticket-{user.name}", overwrites=overwrites)
 
-    # Embed dans le ticket
     embed = discord.Embed(
         title="Ticket ouvert",
-        description=f"{user.mention}, merci d'avoir contacté le support. Un membre du staff va bientôt répondre.",
+        description=f"{user.mention}, merci d'avoir contacté le support.",
         color=discord.Color.green()
     )
-    embed.set_footer(text="Support automatique")
 
     view = TicketButtons()
     await channel.send(embed=embed, view=view)
 
-    # Logs
     log_channel = discord.utils.get(guild.text_channels, name="ticket-logs")
     if log_channel:
         log_embed = discord.Embed(
@@ -109,9 +90,6 @@ async def on_interaction(interaction: discord.Interaction):
         await log_channel.send(embed=log_embed)
 
     await user.send(f"Ton ticket a été créé ici : {channel.mention}")
-
-
-# ========= BOUTONS DU TICKET =========
 
 class TicketButtons(View):
     def __init__(self):
@@ -135,7 +113,5 @@ class TicketButtons(View):
         if log_channel:
             await log_channel.send(f"Ticket {interaction.channel.name} fermé par {interaction.user.mention}")
         await interaction.channel.delete()
-
-# ========= LANCEMENT =========
 
 bot.run(TOKEN)
